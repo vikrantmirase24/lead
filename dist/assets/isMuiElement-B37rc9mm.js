@@ -1,0 +1,1 @@
+import{r as a}from"./index-BtB7UOt2.js";function t(i,u){var l,e;return a.isValidElement(i)&&u.indexOf((l=i.type.muiName)!=null?l:(e=i.type)==null||(e=e._payload)==null||(e=e.value)==null?void 0:e.muiName)!==-1}export{t as i};
