@@ -36,9 +36,5 @@ pnpm-debug.log*
 
 # Windows
 Thumbs.db
-ehthumbs.db
+ehthumbs.d
 Desktop.ini
-# dotenv
-.env
-.env.*
-.venv
