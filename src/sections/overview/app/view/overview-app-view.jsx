@@ -23,6 +23,8 @@ export function OverviewAppView() {
     today_followup: 0,
     today_lead: 0,
     month_lead: 0,
+    today_draft_count: 0,
+    total_draft_count: 0,
   });
 
   function parseJwt(token) {
@@ -62,6 +64,8 @@ export function OverviewAppView() {
             today_followup: data.today_followup_count || 0,
             today_lead: data.today_created_count || 0,
             month_lead: data.current_month_count || 0,
+            today_draft_count: data.today_draft_count || 0,    
+            total_draft_count: data.total_draft_count || 0,    
           });
         }
       } catch (error) {
@@ -182,14 +186,14 @@ export function OverviewAppView() {
         <Grid xs={12} md={3}>
           <Card sx={{ borderRadius: 2, p: 3, width: 1 }}>
             <Box sx={{ mb: 1.5, typography: 'subtitle2', opacity: 0.48 }}>Incomplete Today Leads</Box>
-            <Box sx={{ typography: 'h4' }}>{counts.month_lead}</Box>
+            <Box sx={{ typography: 'h4' }}>{counts.today_draft_count}</Box>
             <Box
               sx={{
                 position: 'absolute', bottom: 16, right: 16, width: 32, height: 32, borderRadius: '50%',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, boxShadow: 2, cursor: 'pointer', transition: 'background 0.2s',
                 '&:hover': { bgcolor: 'success.dark', }
               }}
-              onClick={() => navigate(paths.dashboard.monthledslist)}
+              onClick={() => navigate(paths.dashboard.incompleteTodayLead)}
             >
               →
             </Box>
@@ -198,14 +202,14 @@ export function OverviewAppView() {
         <Grid xs={12} md={3}>
           <Card sx={{ borderRadius: 2, p: 3, width: 1 }}>
             <Box sx={{ mb: 1.5, typography: 'subtitle2', opacity: 0.48 }}>Incomplete All Leads</Box>
-            <Box sx={{ typography: 'h4' }}>{counts.month_lead}</Box>
+            <Box sx={{ typography: 'h4' }}>{counts.total_draft_count}</Box>
             <Box
               sx={{
                 position: 'absolute', bottom: 16, right: 16, width: 32, height: 32, borderRadius: '50%',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, boxShadow: 2, cursor: 'pointer', transition: 'background 0.2s',
                 '&:hover': { bgcolor: 'success.dark', }
               }}
-              onClick={() => navigate(paths.dashboard.monthledslist)}
+              onClick={() => navigate(paths.dashboard.incompleteAllLead)}
             >
               →
             </Box>

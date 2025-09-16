@@ -65,6 +65,7 @@ export const paths = {
     enduseedit: (id) => `${ROOTS.DASHBOARD}/end-use-edit/edit/${id}`,
 
     incompleteTodayLead: `${ROOTS.DASHBOARD}/incomplete-today-lead/view`,
+    incompleteTodayLeadEdit: (id) => `${ROOTS.DASHBOARD}/incomplete-today-lead-edit/${id}`,
     incompleteAllLead: `${ROOTS.DASHBOARD}/incomplete-all-lead/view`,
   },
 };

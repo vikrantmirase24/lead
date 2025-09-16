@@ -111,6 +111,7 @@ export const endpoints = {
     reopenLead: (enquiryId) => `/api/lead/enquiries/${enquiryId}/reopen/`,
 
     incompleteTodayLead: '/api/lead/enquiries/today-draft/',
-
+    incompleteAllLead: '/api/lead/enquiries/draft/',
+    incompleteLead: (id) => `/api/lead/enquiries/${id}/`, 
   },
 };

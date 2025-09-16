@@ -48,6 +48,8 @@ const EndUseAddPage = lazy(() => import('src/pages/dashboard/end-use/end-use-add
 const EndUseEditPage = lazy(() => import('src/pages/dashboard/end-use/end-use-edit'));
 
 const IncompleteTodayLeadPage = lazy(() => import('src/pages/dashboard/leads/incomplete-today-lead'));
+const IncompleteTodayEditLeadPage = lazy(() => import('src/pages/dashboard/leads/incomplete-today-lead-edit'));
+
 const IncompleteAllLeadPage = lazy(() => import('src/pages/dashboard/leads/incomplete-all-lead'));
 
 // ----------------------------------------------------------------------
@@ -110,6 +112,8 @@ export const dashboardRoutes = [
       { path: 'end-use-edit/edit/:id', element: <EndUseEditPage /> },
 
       { path: 'incomplete-today-lead/view/', element: <IncompleteTodayLeadPage /> },
+      { path: 'incomplete-today-lead-edit/:id', element: <IncompleteTodayEditLeadPage /> },
+  
       { path: 'incomplete-all-lead/view/', element: <IncompleteAllLeadPage /> },
     ],
   },

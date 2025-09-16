@@ -28,35 +28,44 @@ const TABLE_HEAD = [
 // ----------------------------------------------------------------------
 
 export default function TodayLeadsIncomplete() {
-  const table = useTable({ defaultRowsPerPage: 10 });
+  const table = useTable({ defaultRowsPerPage: 5 });
   const [search, setSearch] = useState('');
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
 
-  // 🔹 Fetch API Data
+  const fetchLeads = async (page = 1, pageSize = table.rowsPerPage, searchText = '') => {
+    try {
+      setLoading(true);
+      const response = await axiosInstance.get(endpoints.user.incompleteTodayLead, {
+        params: {
+          page,
+          page_size: pageSize,
+          search: searchText || undefined, 
+        },
+      });
+
+      const data = response.data;
+      setLeads(data?.results || []);
+      setTotalCount(data?.total_count || 0);
+    } catch (error) {
+      console.error('Error fetching today’s incomplete leads:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchLeads = async () => {
-      try {
-        setLoading(true);
-        const response = await axiosInstance.get(endpoints.user.incompleteTodayLead);
-        setLeads(response.data?.data || []); // adjust if your API response structure differs
-      } catch (error) {
-        console.error('Error fetching today’s incomplete leads:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    fetchLeads(table.page + 1, table.rowsPerPage, search);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [table.page, table.rowsPerPage]);
 
-    fetchLeads();
-  }, []);
-
-  const handleSearch = (e) => setSearch(e.target.value);
-
-  const filteredLeads = leads.filter(
-    (lead) =>
-      lead.name?.toLowerCase().includes(search.toLowerCase()) ||
-      lead.mobile_number?.includes(search)
-  );
+  const handleSearch = (e) => {
+    const value = e.target.value;
+    setSearch(value);
+    table.onChangePage(null, 0); 
+    fetchLeads(1, table.rowsPerPage, value);
+  };
 
   return (
     <DashboardContent>
@@ -98,8 +107,8 @@ export default function TodayLeadsIncomplete() {
                       <CircularProgress size={24} />
                     </TableCell>
                   </TableRow>
-                ) : filteredLeads.length > 0 ? (
-                  filteredLeads.map((lead) => (
+                ) : leads.length > 0 ? (
+                  leads.map((lead) => (
                     <IncompleteTodayLeadTableRow key={lead.id} row={lead} />
                   ))
                 ) : (
@@ -116,7 +125,7 @@ export default function TodayLeadsIncomplete() {
 
         <TablePaginationCustom
           page={table.page}
-          count={filteredLeads.length}
+          count={totalCount}
           rowsPerPage={table.rowsPerPage}
           onPageChange={table.onChangePage}
           onRowsPerPageChange={table.onChangeRowsPerPage}
@@ -134,7 +143,7 @@ function IncompleteTodayLeadTableRow({ row }) {
 
   const handleEdit = () => {
     popover.onClose();
-    navigate(paths.dashboard.Allleadedit(row.id)); // 🔹 make sure this path exists in your paths.js
+    navigate(paths.dashboard.incompleteTodayLeadEdit(row.id));
   };
 
   return (
@@ -150,7 +159,6 @@ function IncompleteTodayLeadTableRow({ row }) {
         </TableCell>
       </TableRow>
 
-      {/* Action Popover */}
       <CustomPopover open={popover.open} anchorEl={popover.anchorEl} onClose={popover.onClose}>
         <MenuList>
           <MenuItem onClick={handleEdit}>
