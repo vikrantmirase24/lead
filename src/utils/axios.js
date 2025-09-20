@@ -105,6 +105,7 @@ export const endpoints = {
     getallemployees: '/api/lead/enquiries/lead_assign/branch-employees/',
     getemplbybranch: (id) => `/api/lead/enquiries/lead_assign/branch-employees/?branch_id=${id}`,
     getfilteradata: '/api/lead/enquiries/reports/',
+    downloadreport: '/api/lead/enquiries/reports/download/',
 
     followupdate: '/api/lead/enquiries/followup/update/',
     assignLead: (enquiryId) => `/api/lead/enquiries/${enquiryId}/lead_assign/`,

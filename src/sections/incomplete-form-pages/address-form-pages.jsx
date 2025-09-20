@@ -1,8 +1,13 @@
-import { Stack, TextField, MenuItem, Grid, FormControlLabel, Checkbox } from '@mui/material';
+import { Stack, TextField, MenuItem, Grid, FormControlLabel, Checkbox, Button } from '@mui/material';
 import { Controller, useWatch } from 'react-hook-form';
 
-export function AddressForm({ control }) {
+export function AddressForm({ control, getValues, handleSave, pageType }) {
   const useDifferentAddress = useWatch({ control, name: "useDifferentAddress" });
+
+  const onSave = () => {
+    const values = getValues();
+    handleSave(values, pageType);
+  };
 
   return (
     <Stack spacing={2}>
@@ -21,25 +26,14 @@ export function AddressForm({ control }) {
           />
         </Grid>
         <Grid item xs={6}>
-          {/* <Controller
-            name="premisesStatus"
-            control={control}
-            render={({ field }) => (
-              <TextField {...field} select label="Premises Status" fullWidth>
-                <MenuItem value="rented">Rented</MenuItem>
-                <MenuItem value="owned">Owned</MenuItem>
-                <MenuItem value="not_confirm">Not Confirm</MenuItem>
-              </TextField>
-            )}
-          /> */}
           <Controller
             name="premisesStatus"
             control={control}
             render={({ field }) => (
               <TextField {...field} select label="Premises Status" fullWidth>
-                <MenuItem value="rented">Rented</MenuItem>
-                <MenuItem value="owned">Owned</MenuItem>
-                <MenuItem value="not_confirm">Not Confirm</MenuItem>
+                <MenuItem value="Rented">Rented</MenuItem>
+                <MenuItem value="Owned">Owned</MenuItem>
+                <MenuItem value="Not Confirm">Not Confirm</MenuItem>
               </TextField>
             )}
           />
@@ -118,15 +112,48 @@ export function AddressForm({ control }) {
           </Grid>
           <Grid container spacing={2}>
             <Grid item xs={6}>
-              <Controller name="differentAddress" control={control} render={({ field }) => <TextField {...field} label="Different Address" fullWidth />} />
+              <Controller
+                name="differentAddress"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    label="Different Address"
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                  />
+                )}
+              />
             </Grid>
             <Grid item xs={6}>
-              <Controller name="differentPincode" control={control} render={({ field }) => <TextField {...field} label="Different Pincode" fullWidth />} />
+              <Controller
+                name="differentPincode"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    label="Different Pincode"
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                  />
+                )}
+              />
             </Grid>
           </Grid>
           <Grid container spacing={2}>
             <Grid item xs={6}>
-              <Controller name="differentLatitude" control={control} render={({ field }) => <TextField {...field} label="Different Latitude" fullWidth />} />
+              <Controller
+                name="differentLatitude"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    label="Different Latitude"
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                  />
+                )}
+              />
             </Grid>
             <Grid item xs={6}>
               <Controller name="differentLongitude" control={control} render={({ field }) => <TextField {...field} label="Different Longitude" fullWidth />} />
@@ -145,6 +172,11 @@ export function AddressForm({ control }) {
           </Grid>
         </Stack>
       )}
+      <Stack direction="row" justifyContent="flex-end" mt={2}>
+        <Button variant="contained" onClick={() => handleSave(getValues(), 'address')}>
+          Save
+        </Button>
+      </Stack>
     </Stack>
   );
 }

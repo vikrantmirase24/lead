@@ -1,4 +1,4 @@
-import { Stack, TextField, MenuItem, Button,Typography, Grid } from "@mui/material";
+import { Stack, TextField, MenuItem, Button, Typography, Grid } from "@mui/material";
 import { Controller, useWatch } from "react-hook-form";
 
 export function ImageForm({ control }) {
@@ -11,7 +11,13 @@ export function ImageForm({ control }) {
         name="docCategory"
         control={control}
         render={({ field }) => (
-          <TextField {...field} select label="Document" fullWidth>
+          <TextField
+            {...field}
+            select
+            label="Document"
+            fullWidth
+            value={field.value || ''}   // 👈 ensures empty string if undefined
+          >
             <MenuItem value="image">Image</MenuItem>
             <MenuItem value="kyc">KYC</MenuItem>
             <MenuItem value="income">Income Documents</MenuItem>
@@ -74,9 +80,9 @@ export function ImageForm({ control }) {
         control={control}
         render={({ field }) => (
           <TextField {...field} select label="Premises Type" fullWidth>
-            <MenuItem value="residence">Residence</MenuItem>
-            <MenuItem value="shop">Shop</MenuItem>
-            <MenuItem value="office">Office</MenuItem>
+            <MenuItem value="1">Residence</MenuItem>
+            <MenuItem value="2">Shop</MenuItem>
+            <MenuItem value="3">Office</MenuItem>
           </TextField>
         )}
       />
@@ -89,21 +95,24 @@ export function ImageForm({ control }) {
               name="uploadedFile"
               control={control}
               render={({ field }) => (
-                <>
-                  <Button
-                    variant="contained"
-                    component="label"
-                    fullWidth
-                  >
-                    Upload
-                    <input
-                      hidden
-                      accept="image/*,application/pdf"
-                      type="file"
-                      onChange={(e) => field.onChange(e.target.files[0])}
-                    />
-                  </Button>
-                </>
+                <Button
+                  variant="contained"
+                  component="label"
+                  fullWidth
+                >
+                  Upload
+                  <input
+                    hidden
+                    accept="image/*,application/pdf"
+                    type="file"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        field.onChange(file); // store File object
+                      }
+                    }}
+                  />
+                </Button>
               )}
             />
           </Grid>
@@ -112,13 +121,34 @@ export function ImageForm({ control }) {
             <Controller
               name="uploadedFile"
               control={control}
-              render={({ field }) =>
-                field.value && (
-                  <Typography variant="body2" noWrap>
-                    📂 {field.value.name}
-                  </Typography>
-                )
-              }
+              render={({ field }) => {
+                if (!field.value) return null;
+
+                // If it's a File (new upload)
+                if (field.value instanceof File) {
+                  return (
+                    <Typography variant="body2" noWrap>
+                      📂 {field.value.name}
+                    </Typography>
+                  );
+                }
+
+                // If it's from API (previewUrl)
+                if (field.value.previewUrl) {
+                  return (
+                    <a
+                      href={field.value.previewUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Typography variant="body2" color="primary" noWrap>
+                        📷 View Existing Image
+                      </Typography>
+                    </a>
+                  );
+                }
+                return null;
+              }}
             />
           </Grid>
         </Grid>

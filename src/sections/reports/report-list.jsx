@@ -48,11 +48,16 @@ export function ReportsListView() {
   const [leads, setLeads] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [downloadLoading, setDownloadLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
 
   const statusOptions = [
     { value: '1', label: 'Open' },
     { value: '2', label: 'Closed' },
     { value: '3', label: 'Pending' },
+    { value: '4', label: 'Today Followup' },
+    { value: '5', label: 'Today Incomplete' },
+    { value: '0', label: 'All Incomplte' },
   ];
 
   useEffect(() => {
@@ -65,7 +70,6 @@ export function ReportsListView() {
         setBranches([]);
       }
     };
-
     const fetchEmployees = async () => {
       try {
         const res = await axiosInstance.get(endpoints.user.getallemployees);
@@ -81,7 +85,6 @@ export function ReportsListView() {
     fetchBranches();
     fetchEmployees();
   }, []);
-
   useEffect(() => {
     const fetchEmployeesByBranch = async () => {
       try {
@@ -104,33 +107,39 @@ export function ReportsListView() {
       setSalesExecutive('');
       setEmployee('');
     };
-
     fetchEmployeesByBranch();
   }, [selectedBranch, allEmployees]);
-
-  const handleSearch = async () => {
+  const buildFilterPayload = (isDownload = false) => {
+    const payload = {
+      page: isDownload ? 1 : table.page + 1,
+      page_size: isDownload ? (totalCount || 1000) : table.rowsPerPage,
+    };
+    if (search) payload.search = search;
+    if (fromDate) payload.from_date = fromDate.format("YYYY-MM-DD");
+    if (toDate) payload.to_date = toDate.format("YYYY-MM-DD");
+    if (employee) payload.employee_id = employee;
+    if (salesExecutive) payload.assign_to = salesExecutive;
+    if (status) payload.status = parseInt(status, 10);
+    return payload;
+  };
+  const handleSearch = async ({ pageOverride, pageSizeOverride } = {}) => {
     try {
       setLoading(true);
-
       if (fromDate && !toDate) {
         setDateError("Please select To Date when From Date is selected.");
         return;
       }
       setDateError("");
-      const payload = {
-        page: table.page + 1,
-        page_size: table.rowsPerPage,
-      };
-      if (search) payload.search = search;
-      if (fromDate) payload.from_date = fromDate.format("YYYY-MM-DD");
-      if (toDate) payload.to_date = toDate.format("YYYY-MM-DD");
-      if (employee) payload.employee_id = employee;
-      if (salesExecutive) payload.assign_to = salesExecutive;
-      if (status) payload.status = status;
-
-      const response = await axiosInstance.post(endpoints.user.getfilteradata, payload);
-      setLeads(response.data?.data || []);
-      setTotalCount(response.data?.count || 0);
+      const payload = buildFilterPayload(false);
+      const { page, page_size, ...filters } = payload;
+      // use explicit overrides if provided (note: page in API is 1-based)
+      const finalPage = pageOverride ?? page;
+      const finalPageSize = pageSizeOverride ?? page_size;
+      const url = `${endpoints.user.getfilteradata}?page=${finalPage}&page_size=${finalPageSize}`;
+      const response = await axiosInstance.post(url, filters);
+      // backend uses 'results' (paginated) — fall back to 'data' if needed
+      setLeads(response.data?.results || response.data?.data || []);
+      setTotalCount(response.data?.count ?? response.data?.total_count ?? 0);
     } catch (error) {
       console.error("Error searching reports:", error);
       setLeads([]);
@@ -139,7 +148,10 @@ export function ReportsListView() {
       setLoading(false);
     }
   };
-
+  const handleSearchClick = () => {
+    setHasSearched(true);
+    handleSearch(); // no overrides here — uses current table.page & table.rowsPerPage
+  };
   const handleReset = async () => {
     setSearch("");
     setFromDate(null);
@@ -148,14 +160,13 @@ export function ReportsListView() {
     setSelectedBranch("");
     setSalesExecutive("");
     setEmployee("");
-
-    // fetch all data again
     try {
       setLoading(true);
-      const res = await axiosInstance.get(
-        `${endpoints.user.getallreports}?page=${table.page + 1}&page_size=${table.rowsPerPage}`
-      );
-      setLeads(res.data?.results || []);
+      const payload = buildFilterPayload(false);
+      const { page, page_size, ...filters } = payload;
+      const url = `${endpoints.user.getfilteradata}?page=${page}&page_size=${page_size}`;
+      const res = await axiosInstance.post(url, filters);
+      setLeads(res.data?.data || []);
       setTotalCount(res.data?.count || 0);
     } catch (err) {
       console.error("Error fetching reports:", err);
@@ -165,38 +176,32 @@ export function ReportsListView() {
       setLoading(false);
     }
   };
-
   const handledownload = async () => {
     try {
-      setLoading(true);
-
-      const payload = { page: 1, page_size: totalCount || 1000 };
-      if (search) payload.search = search;
-      if (fromDate) payload.from_date = fromDate.format("YYYY-MM-DD");
-      if (toDate) payload.to_date = toDate.format("YYYY-MM-DD");
-      if (employee) payload.employee_id = employee;
-      if (salesExecutive) payload.assign_to = salesExecutive;
-      if (status) payload.status = status;
-
-      const response = await axiosInstance.post(endpoints.user.getfilteradata, payload);
-      const rows = response.data?.data || [];
-
-      if (!rows.length) {
-        alert("No data available to download.");
-        return;
+      setDownloadLoading(true);
+      const payload = buildFilterPayload(true);
+      const { page, page_size, ...filters } = payload;
+      const response = await axiosInstance.post(
+        endpoints.user.downloadreport,
+        filters,
+        { responseType: "blob" }
+      );
+      const contentDisposition = response.headers["content-disposition"];
+      let filename = "enquiries_report.xlsx";
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="?([^"]+)"?/);
+        if (match?.[1]) {
+          filename = match[1].trim().replace(/[_]+$/, "");
+        }
       }
-
-      const worksheet = XLSX.utils.json_to_sheet(rows);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Reports");
-
-      const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-      const blob = new Blob([excelBuffer], { type: "application/octet-stream" });
-      saveAs(blob, "reports.xlsx");
+      const blob = new Blob([response.data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      saveAs(blob, filename);
     } catch (error) {
-      console.error("Error downloading reports:", error);
+      console.error("Error downloading report:", error);
     } finally {
-      setLoading(false);
+      setDownloadLoading(false);
     }
   };
 
@@ -212,7 +217,6 @@ export function ReportsListView() {
           ]}
           sx={{ mb: { xs: 3, md: 3 } }}
         />
-
         <Card sx={{ p: 2 }}>
           <TextField
             fullWidth
@@ -240,7 +244,6 @@ export function ReportsListView() {
             }}
             sx={{ mb: 2 }}
           />
-
           <Button
             onClick={() => setShowAdvanced(!showAdvanced)}
             startIcon={<Iconify icon={showAdvanced ? 'eva:arrow-up-fill' : 'eva:arrow-down-fill'} />}
@@ -248,7 +251,6 @@ export function ReportsListView() {
           >
             {showAdvanced ? 'Hide Advanced Search' : 'Show Advanced Search'}
           </Button>
-
           <Collapse in={showAdvanced}>
             <Stack direction="row" spacing={2} sx={{ mt: 2 }} alignItems="center">
               <FormControl sx={{ minWidth: 300 }}>
@@ -265,7 +267,6 @@ export function ReportsListView() {
                   ))}
                 </Select>
               </FormControl>
-
               <FormControl sx={{ minWidth: 300 }}>
                 <InputLabel>Sales Executive</InputLabel>
                 <Select
@@ -280,7 +281,6 @@ export function ReportsListView() {
                   ))}
                 </Select>
               </FormControl>
-
               <FormControl sx={{ minWidth: 300 }}>
                 <InputLabel>Employee</InputLabel>
                 <Select
@@ -296,7 +296,6 @@ export function ReportsListView() {
                 </Select>
               </FormControl>
             </Stack>
-
             <Stack direction="row" spacing={2} sx={{ mt: 2 }} alignItems="center">
               <DatePicker
                 label="From Date"
@@ -304,7 +303,6 @@ export function ReportsListView() {
                 onChange={(newValue) => setFromDate(newValue)}
                 slotProps={{ textField: { fullWidth: true } }}
               />
-
               <DatePicker
                 label="To Date"
                 value={toDate}
@@ -322,7 +320,6 @@ export function ReportsListView() {
                   },
                 }}
               />
-
               <FormControl sx={{ minWidth: 300 }}>
                 <InputLabel>Status</InputLabel>
                 <Select
@@ -338,18 +335,13 @@ export function ReportsListView() {
                 </Select>
               </FormControl>
             </Stack>
-
             <Stack
               direction="row"
               spacing={2}
               sx={{ mt: 2 }}
               justifyContent="flex-end"
             >
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={handleSearch}
-              >
+              <Button variant="contained" color="primary" onClick={handleSearchClick}>
                 Search
               </Button>
               <Button
@@ -363,13 +355,13 @@ export function ReportsListView() {
                 variant="contained"
                 color="secondary"
                 onClick={handledownload}
+                disabled={downloadLoading}
               >
-                Download
+                {downloadLoading ? "Processing..." : "Download"}
               </Button>
             </Stack>
           </Collapse>
         </Card>
-
         <Card sx={{ mt: 3 }}>
           <Scrollbar>
             <TableContainer sx={{ minWidth: 800 }}>
@@ -403,13 +395,28 @@ export function ReportsListView() {
               </Table>
             </TableContainer>
           </Scrollbar>
-
           <TablePaginationCustom
             page={table.page}
             count={totalCount}
             rowsPerPage={table.rowsPerPage}
-            onPageChange={table.onChangePage}
-            onRowsPerPageChange={table.onChangeRowsPerPage}
+            onPageChange={(e, newPage) => {
+              // update table internal state
+              table.onChangePage(e, newPage);
+              // trigger search only if user already ran search once
+              if (hasSearched) {
+                // API expects 1-based page
+                handleSearch({ pageOverride: newPage + 1 });
+              }
+            }}
+            onRowsPerPageChange={(e) => {
+              const newSize = parseInt(e.target.value, 10) || table.rowsPerPage;
+              // update table internal state
+              table.onChangeRowsPerPage(e);
+              // if user already searched once, fetch again with new page_size and reset to page 1
+              if (hasSearched) {
+                handleSearch({ pageOverride: 1, pageSizeOverride: newSize });
+              }
+            }}
           />
         </Card>
       </DashboardContent>
@@ -421,16 +428,14 @@ function ReportTableRow({ row, onDeleteSuccess }) {
   const popover = usePopover();
   const confirm = useBoolean();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-
+  const [deleteLoading, setDeleteLoading] = useState(false); // renamed
   const handleEdit = () => {
     popover.onClose();
     navigate(`/dashboard/reports/edit/${row.id}`);
   };
-
   const handleDelete = async () => {
     try {
-      setLoading(true);
+      setDeleteLoading(true);
       await axiosInstance.delete(endpoints.user.deletereport(row.id));
       confirm.onFalse();
       popover.onClose();
@@ -438,10 +443,9 @@ function ReportTableRow({ row, onDeleteSuccess }) {
     } catch (error) {
       console.error("Error deleting report:", error);
     } finally {
-      setLoading(false);
+      setDeleteLoading(false);
     }
   };
-
   return (
     <>
       <TableRow hover>
@@ -454,7 +458,6 @@ function ReportTableRow({ row, onDeleteSuccess }) {
           </IconButton>
         </TableCell>
       </TableRow>
-
       <CustomPopover open={popover.open} anchorEl={popover.anchorEl} onClose={popover.onClose}>
         <MenuList>
           <MenuItem onClick={handleEdit}>
@@ -467,7 +470,6 @@ function ReportTableRow({ row, onDeleteSuccess }) {
           </MenuItem>
         </MenuList>
       </CustomPopover>
-
       <ConfirmDialog
         open={confirm.value}
         onClose={confirm.onFalse}
@@ -478,9 +480,9 @@ function ReportTableRow({ row, onDeleteSuccess }) {
             variant="contained"
             color="error"
             onClick={handleDelete}
-            disabled={loading}
+            disabled={deleteLoading}
           >
-            {loading ? 'Deleting...' : 'Delete'}
+            {deleteLoading ? 'Deleting...' : 'Delete'}
           </Button>
         }
       />

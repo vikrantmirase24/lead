@@ -55,6 +55,7 @@ export function LeadsListView() {
             search: searchTerm || ''
           }
         });
+        console.log(response)
         setLeads(response.data.results || []);
         setTotalCount(response.data.count || 0);
       } catch (error) {
