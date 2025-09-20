@@ -169,17 +169,18 @@ export default function EditIncompleteLeadPage() {
           differentArea: address.different_area || '',
 
           // --- Verification ---
+          // --- Verification ---
           mobileNumber: lead.enquiry_verification?.mobile || '',
           email: lead.enquiry_verification?.email || '',
           aadhar: lead.enquiry_verification?.aadhaar || '',
 
-          // statuses come from correct place
+          // Verified status
           mobileVerified: lead.enquiry_verification?.mobile_status === 1,
           emailVerified: lead.enquiry_verification?.email_status === 1,
           aadharVerified: lead.enquiry_verification?.aadhaar_verified || false,
 
           loanTypeMaster: loan.loan_type ? Number(loan.loan_type) : null,
-          loanAmount: loan.loan_amount_range ? Number(loan.loan_amount_range) : null,
+          loanAmount: loan.loan_amount_range ?? null,
           loanRequiredOn: loan.loan_required_on ? Number(loan.loan_required_on) : null,
           vehicleRegistration: loan.vehicle_registration_number || '',
           incomeDocument: loan.income_document || '',
@@ -317,8 +318,8 @@ export default function EditIncompleteLeadPage() {
           <Tab label="Address" />
           <Tab label="Verification" />
           <Tab label="Loan Details" />
-          {/* <Tab label="Image" />
-          <Tab label="Selfies" /> */}
+          <Tab label="Image" />
+          {/* <Tab label="Selfies" /> */}
         </Tabs>
 
         <Box sx={{ p: 3 }}>
@@ -334,15 +335,20 @@ export default function EditIncompleteLeadPage() {
               />
             )}
             {currentTab === 2 && (
-              <VerificationForm control={control} mobileVerified={mobileVerified}
-                emailVerified={emailVerified} aadharVerified={aadharVerified}
+              <VerificationForm
+                control={control}
+                leadId={id}
+                userId={id}
+                mobileVerified={mobileVerified}
+                emailVerified={emailVerified}
+                aadharVerified={aadharVerified}
               />
             )}
             {currentTab === 3 &&
               <LoanDetailsForm control={control} getValues={getValues} handleSave={handleSave}
                 pageType="loan" />}
-            {/* {currentTab === 4 && <ImageForm control={control} />}
-            {currentTab === 5 && <SelfieForm control={control} />} */}
+            {currentTab === 4 && <ImageForm control={control} enquiryId={id}/>}
+            {/* {currentTab === 5 && <SelfieForm control={control} />} */}
           </form>
         </Box>
       </Card>

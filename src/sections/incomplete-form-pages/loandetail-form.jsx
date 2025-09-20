@@ -1,22 +1,36 @@
+import { useState, useEffect } from 'react';
 import { Stack, TextField, MenuItem, Button } from '@mui/material';
 import { Controller, useWatch } from 'react-hook-form';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import dayjs from 'dayjs';
+import axiosInstance, { endpoints } from 'src/utils/axios';
 
 export function LoanDetailsForm({ control, getValues, handleSave, pageType }) {
     const loanType = useWatch({ control, name: 'loanTypeMaster' });
     const loanRequiredOn = useWatch({ control, name: 'loanRequiredOn' });
     const vehicleRegistration = useWatch({ control, name: 'vehicleRegistration' });
+    const [loanAmountOptions, setLoanAmountOptions] = useState([]);
+
+    useEffect(() => {
+        const fetchLoanAmounts = async () => {
+            try {
+                const res = await axiosInstance.get(endpoints.user.allLoanAmount);
+                setLoanAmountOptions(res.data.data || []);
+            } catch (error) {
+                console.error("Error fetching loan amount ranges:", error);
+            }
+        };
+        fetchLoanAmounts();
+    }, []);
 
     const onSave = () => {
-        const values = getValues(); // ✅ get all current form values
-        handleSave(values, pageType); // ✅ trigger parent save function
+        const values = getValues();
+        handleSave(values, pageType);
     };
 
     return (
         <Stack spacing={2}>
-            {/* Loan Type Dropdown */}
             <Controller
                 name="loanTypeMaster"
                 control={control}
@@ -43,10 +57,11 @@ export function LoanDetailsForm({ control, getValues, handleSave, pageType }) {
                         control={control}
                         render={({ field }) => (
                             <TextField {...field} select label="Loan Amount" fullWidth>
-                                <MenuItem value={1}>50,000</MenuItem>
-                                <MenuItem value={2}>1,00,000</MenuItem>
-                                <MenuItem value={3}>2,00,000</MenuItem>
-                                <MenuItem value={4}>5,00,000</MenuItem>
+                                {loanAmountOptions.map((opt) => (
+                                    <MenuItem key={opt.id} value={opt.id}>
+                                        {opt.loan_amount_from} - {opt.loan_amount_to}
+                                    </MenuItem>
+                                ))}
                             </TextField>
                         )}
                     />
@@ -111,10 +126,11 @@ export function LoanDetailsForm({ control, getValues, handleSave, pageType }) {
                         control={control}
                         render={({ field }) => (
                             <TextField {...field} select label="Loan Amount" fullWidth>
-                                <MenuItem value={10}>10 Lakhs</MenuItem>
-                                <MenuItem value={20}>20 Lakhs</MenuItem>
-                                <MenuItem value={30}>30 Lakhs</MenuItem>
-                                <MenuItem value={50}>50 Lakhs</MenuItem>
+                                {loanAmountOptions.map((opt) => (
+                                    <MenuItem key={opt.id} value={opt.id}>
+                                        {opt.loan_amount_from} - {opt.loan_amount_to}
+                                    </MenuItem>
+                                ))}
                             </TextField>
                         )}
                     />

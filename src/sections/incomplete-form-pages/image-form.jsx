@@ -1,8 +1,43 @@
+import { useState } from "react";
 import { Stack, TextField, MenuItem, Button, Typography, Grid } from "@mui/material";
-import { Controller, useWatch } from "react-hook-form";
+import { Controller, useWatch, useFormContext } from "react-hook-form";
+import axiosInstance, { endpoints } from 'src/utils/axios';
 
-export function ImageForm({ control }) {
+export function ImageForm({ control, enquiryId }) {
   const docCategory = useWatch({ control, name: "docCategory" });
+  const imgPremisesType = useWatch({ control, name: "imgPremisesType" });
+  const uploadedFile = useWatch({ control, name: "uploadedFile" });
+
+  const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const docTypeMap = { image: 1, kyc: 2, income: 3, property: 4 };
+
+  const handleImageUpload = async () => {
+    if (!uploadedFile) {
+      setErrorMsg("Please select a file to upload.");
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append("enquiry", enquiryId);
+      formData.append("document_types", docTypeMap[docCategory]); // send integer
+      formData.append("premises_type", imgPremisesType || "");
+
+      formData.append("media_file", uploadedFile); // attach file
+
+      await axiosInstance.post(
+        endpoints.user.imageUpload(enquiryId), // ✅ use endpoint from endpoints.user
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+
+      setSuccessMsg("Image uploaded successfully!");
+    } catch (error) {
+      console.error(error);
+      setErrorMsg("Failed to upload image!");
+    }
+  };
 
   return (
     <Stack spacing={2}>
@@ -11,13 +46,7 @@ export function ImageForm({ control }) {
         name="docCategory"
         control={control}
         render={({ field }) => (
-          <TextField
-            {...field}
-            select
-            label="Document"
-            fullWidth
-            value={field.value || ''}   // 👈 ensures empty string if undefined
-          >
+          <TextField {...field} select label="Document" fullWidth value={field.value || ''}>
             <MenuItem value="image">Image</MenuItem>
             <MenuItem value="kyc">KYC</MenuItem>
             <MenuItem value="income">Income Documents</MenuItem>
@@ -26,7 +55,7 @@ export function ImageForm({ control }) {
         )}
       />
 
-      {/* KYC Docs */}
+      {/* Conditional Document Type Fields */}
       {docCategory === "kyc" && (
         <Controller
           name="kycDocType"
@@ -41,8 +70,6 @@ export function ImageForm({ control }) {
           )}
         />
       )}
-
-      {/* Income Docs */}
       {docCategory === "income" && (
         <Controller
           name="incomeDocType"
@@ -57,8 +84,6 @@ export function ImageForm({ control }) {
           )}
         />
       )}
-
-      {/* Property Docs */}
       {docCategory === "property" && (
         <Controller
           name="propertyDocType"
@@ -80,79 +105,58 @@ export function ImageForm({ control }) {
         control={control}
         render={({ field }) => (
           <TextField {...field} select label="Premises Type" fullWidth>
-            <MenuItem value="1">Residence</MenuItem>
-            <MenuItem value="2">Shop</MenuItem>
-            <MenuItem value="3">Office</MenuItem>
+            <MenuItem value="Residence">Residence</MenuItem>
+            <MenuItem value="Shop">Shop</MenuItem>
+            <MenuItem value="Office">Office</MenuItem>
           </TextField>
         )}
       />
 
       {/* Upload Button */}
-      <Stack spacing={2}>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={3}>
-            <Controller
-              name="uploadedFile"
-              control={control}
-              render={({ field }) => (
-                <Button
-                  variant="contained"
-                  component="label"
-                  fullWidth
-                >
-                  Upload
-                  <input
-                    hidden
-                    accept="image/*,application/pdf"
-                    type="file"
-                    onChange={(e) => {
-                      const file = e.target.files[0];
-                      if (file) {
-                        field.onChange(file); // store File object
-                      }
-                    }}
-                  />
-                </Button>
-              )}
-            />
-          </Grid>
-
-          <Grid item xs={9}>
-            <Controller
-              name="uploadedFile"
-              control={control}
-              render={({ field }) => {
-                if (!field.value) return null;
-
-                // If it's a File (new upload)
-                if (field.value instanceof File) {
-                  return (
-                    <Typography variant="body2" noWrap>
-                      📂 {field.value.name}
-                    </Typography>
-                  );
-                }
-
-                // If it's from API (previewUrl)
-                if (field.value.previewUrl) {
-                  return (
-                    <a
-                      href={field.value.previewUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Typography variant="body2" color="primary" noWrap>
-                        📷 View Existing Image
-                      </Typography>
-                    </a>
-                  );
-                }
-                return null;
-              }}
-            />
-          </Grid>
+      <Grid container spacing={2} alignItems="center">
+        <Grid item xs={3}>
+          <Controller
+            name="uploadedFile"
+            control={control}
+            render={({ field }) => (
+              <Button variant="contained" component="label" fullWidth>
+                Upload
+                <input
+                  hidden
+                  accept="image/*,application/pdf"
+                  type="file"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) field.onChange(file);
+                  }}
+                />
+              </Button>
+            )}
+          />
         </Grid>
-      </Stack>
+
+        <Grid item xs={9}>
+          {uploadedFile && (
+            <Typography variant="body2" noWrap>
+              {uploadedFile instanceof File
+                ? `📂 ${uploadedFile.name}`
+                : uploadedFile.previewUrl
+                  ? <a href={uploadedFile.previewUrl} target="_blank" rel="noopener noreferrer">📷 View Existing Image</a>
+                  : null
+              }
+            </Typography>
+          )}
+        </Grid>
+      </Grid>
+
+      {/* Save Button */}
+      <Button variant="contained" onClick={handleImageUpload}>
+        Save Image
+      </Button>
+
+      {/* Success / Error Messages */}
+      {successMsg && <Typography color="green">{successMsg}</Typography>}
+      {errorMsg && <Typography color="red">{errorMsg}</Typography>}
     </Stack>
   );
 }

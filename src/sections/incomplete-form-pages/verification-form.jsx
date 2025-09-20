@@ -1,36 +1,85 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Stack, TextField, Button, InputAdornment } from '@mui/material';
 import { Controller, useWatch } from 'react-hook-form';
+import axiosInstance, { endpoints } from 'src/utils/axios';
 
-export function VerificationForm({ control, mobileVerified, emailVerified, aadharVerified }) {
+export function VerificationForm({ control, leadId, userId, mobileVerified, emailVerified, aadharVerified }) {
   const mobileNumber = useWatch({ control, name: 'mobileNumber' });
   const email = useWatch({ control, name: 'email' });
   const aadhar = useWatch({ control, name: 'aadhar' });
 
-  // only for showing OTP inputs after "Send OTP"
-  const [otpState, setOtpState] = useState({
-    mobile: false,
-    email: false,
-    aadhar: false,
+  const [verified, setVerified] = useState({
+    mobile: mobileVerified || false,
+    email: emailVerified || false,
+    aadhar: aadharVerified || false,
   });
 
-  // Simple email validation
-  const isValidEmail = (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+  useEffect(() => {
+    setVerified({
+      mobile: mobileVerified || false,
+      email: emailVerified || false,
+      aadhar: aadharVerified || false,
+    });
+  }, [mobileVerified, emailVerified, aadharVerified]);
 
-  // Handlers
-  const handleSendOtp = (type) => setOtpState((prev) => ({ ...prev, [type]: true }));
-  const handleResendOtp = (type) => alert(`${type} OTP Resent`);
-  const handleSkipOtp = (type) => alert(`${type} OTP Skipped`);
+  const [otpState, setOtpState] = useState({ mobile: false, email: false, aadhar: false });
+  const [requestIds, setRequestIds] = useState({ mobile: null, email: null, aadhar: null });
 
-  const handleVerify = (type) => {
-    alert(`${type} Verified!`);
-    setOtpState((prev) => ({ ...prev, [type]: false }));
-    // ideally call API + update parent verified flag here
+  const handleSendOtp = async (type, value) => {
+    try {
+      const res = await axiosInstance.post(endpoints.user.verification(leadId), {
+        channel: type,
+        value,
+      });
+      setRequestIds((prev) => ({ ...prev, [type]: res.data.request_id }));
+      setOtpState((prev) => ({ ...prev, [type]: true }));
+    } catch (err) {
+      console.error(err);
+      alert(`Failed to send OTP for ${type}`);
+    }
   };
+
+  const handleVerify = async (type, otp, value) => {
+    try {
+      const res = await axiosInstance.post(endpoints.user.otpVerify(leadId), {
+        user_id: userId,
+        request_id: requestIds[type],
+        otp_code: otp,
+        channel: type,
+        value,
+      });
+      if (res.data.success) {
+        setVerified((prev) => ({ ...prev, [type]: true }));
+        setOtpState((prev) => ({ ...prev, [type]: false }));
+      } else {
+        alert(`${type} OTP verification failed`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert(`${type} OTP verification failed`);
+    }
+  };
+
+  const handleCompleteVerification = async () => {
+    try {
+      await axiosInstance.post(endpoints.user.completeVerification(leadId), {
+        mobile: mobileNumber,
+        email,
+        aadhaar: aadhar,
+        mobile_verified: verified.mobile,
+        email_verified: verified.email,
+        aadhaar_verified: verified.aadhar,
+      });
+      alert('✅ Verification Complete');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to complete verification');
+    }
+  };
+
 
   return (
     <Stack spacing={4}>
-      {/* Mobile */}
       <Stack spacing={2}>
         <Controller
           name="mobileNumber"
@@ -40,48 +89,41 @@ export function VerificationForm({ control, mobileVerified, emailVerified, aadha
               {...field}
               label="Mobile Number"
               fullWidth
-              disabled={mobileVerified}
-              inputProps={{ maxLength: 10, inputMode: 'numeric', pattern: '[0-9]*' }}
-              onChange={(e) => {
-                const value = e.target.value.replace(/\D/g, '');
-                if (value.length <= 10) field.onChange(value);
-              }}
+              disabled={verified.mobile}
               InputProps={{
-                endAdornment: mobileVerified && (
+                endAdornment: verified.mobile && (
                   <InputAdornment position="end">
-                    <span style={{ color: "green", fontSize: "14px", fontWeight: 600 }}>
-                      ✓ Verified
-                    </span>
+                    <span style={{ color: 'green', fontWeight: 600 }}>✓ Verified</span>
                   </InputAdornment>
                 ),
               }}
             />
           )}
         />
-
-        {!mobileVerified && !otpState.mobile && mobileNumber?.length === 10 && (
+        {!verified.mobile && !otpState.mobile && mobileNumber?.length === 10 && (
           <Stack direction="row" spacing={2}>
-            <Button variant="contained" onClick={() => handleSendOtp('mobile')}>Send OTP</Button>
-            <Button variant="outlined" onClick={() => handleSkipOtp('mobile')}>Skip OTP</Button>
+            <Button variant="contained" onClick={() => handleSendOtp('mobile', mobileNumber)}>
+              Send OTP
+            </Button>
           </Stack>
         )}
-
-        {!mobileVerified && otpState.mobile && (
+        {!verified.mobile && otpState.mobile && (
           <>
             <Controller
               name="mobileOtp"
               control={control}
               render={({ field }) => <TextField {...field} label="Enter Mobile OTP" fullWidth />}
             />
-            <Stack direction="row" spacing={2}>
-              <Button variant="contained" color="success" onClick={() => handleVerify('mobile')}>Verify</Button>
-              <Button variant="outlined" onClick={() => handleResendOtp('Mobile')}>Resend OTP</Button>
-            </Stack>
+            <Button
+              variant="contained"
+              onClick={() => handleVerify('mobile', control.getValues('mobileOtp'), mobileNumber)}
+            >
+              Verify Mobile
+            </Button>
           </>
         )}
       </Stack>
 
-      {/* Email */}
       <Stack spacing={2}>
         <Controller
           name="email"
@@ -92,43 +134,41 @@ export function VerificationForm({ control, mobileVerified, emailVerified, aadha
               label="Email"
               type="email"
               fullWidth
-              disabled={emailVerified}
+              disabled={verified.email}
               InputProps={{
-                endAdornment: emailVerified && (
+                endAdornment: verified.email && (
                   <InputAdornment position="end">
-                    <span style={{ color: "green", fontSize: "14px", fontWeight: 600 }}>
-                      ✓ Verified
-                    </span>
+                    <span style={{ color: 'green', fontWeight: 600 }}>✓ Verified</span>
                   </InputAdornment>
                 ),
               }}
             />
           )}
         />
-
-        {!emailVerified && !otpState.email && isValidEmail(email) && (
+        {!verified.email && !otpState.email && email && (
           <Stack direction="row" spacing={2}>
-            <Button variant="contained" onClick={() => handleSendOtp('email')}>Send OTP</Button>
-            <Button variant="outlined" onClick={() => handleSkipOtp('email')}>Skip OTP</Button>
+            <Button variant="contained" onClick={() => handleSendOtp('email', email)}>
+              Send OTP
+            </Button>
           </Stack>
         )}
-
-        {!emailVerified && otpState.email && (
+        {!verified.email && otpState.email && (
           <>
             <Controller
               name="emailOtp"
               control={control}
               render={({ field }) => <TextField {...field} label="Enter Email OTP" fullWidth />}
             />
-            <Stack direction="row" spacing={2}>
-              <Button variant="contained" color="success" onClick={() => handleVerify('email')}>Verify</Button>
-              <Button variant="outlined" onClick={() => handleResendOtp('Email')}>Resend OTP</Button>
-            </Stack>
+            <Button
+              variant="contained"
+              onClick={() => handleVerify('email', control.getValues('emailOtp'), email)}
+            >
+              Verify Email
+            </Button>
           </>
         )}
       </Stack>
 
-      {/* Aadhaar */}
       <Stack spacing={2}>
         <Controller
           name="aadhar"
@@ -138,45 +178,45 @@ export function VerificationForm({ control, mobileVerified, emailVerified, aadha
               {...field}
               label="Aadhaar Number"
               fullWidth
-              disabled={aadharVerified}
-              inputProps={{ maxLength: 12, inputMode: 'numeric', pattern: '[0-9]*' }}
-              onChange={(e) => {
-                const value = e.target.value.replace(/\D/g, '');
-                if (value.length <= 12) field.onChange(value);
-              }}
+              disabled={verified.aadhar}
               InputProps={{
-                endAdornment: aadharVerified && (
+                endAdornment: verified.aadhar && (
                   <InputAdornment position="end">
-                    <span style={{ color: "green", fontSize: "14px", fontWeight: 600 }}>
-                      ✓ Verified
-                    </span>
+                    <span style={{ color: 'green', fontWeight: 600 }}>✓ Verified</span>
                   </InputAdornment>
                 ),
               }}
             />
           )}
         />
-
-        {!aadharVerified && !otpState.aadhar && aadhar?.length === 12 && (
+        {!verified.aadhar && !otpState.aadhar && aadhar?.length === 12 && (
           <Stack direction="row" spacing={2}>
-            <Button variant="contained" onClick={() => handleSendOtp('aadhar')}>Send OTP</Button>
-            <Button variant="outlined" onClick={() => handleSkipOtp('aadhar')}>Skip OTP</Button>
+            <Button variant="contained" onClick={() => handleSendOtp('aadhar', aadhar)}>
+              Send OTP
+            </Button>
           </Stack>
         )}
-
-        {!aadharVerified && otpState.aadhar && (
+        {!verified.aadhar && otpState.aadhar && (
           <>
             <Controller
               name="aadharOtp"
               control={control}
               render={({ field }) => <TextField {...field} label="Enter Aadhaar OTP" fullWidth />}
             />
-            <Stack direction="row" spacing={2}>
-              <Button variant="contained" color="success" onClick={() => handleVerify('aadhar')}>Verify</Button>
-              <Button variant="outlined" onClick={() => handleResendOtp('Aadhar')}>Resend OTP</Button>
-            </Stack>
+            <Button
+              variant="contained"
+              onClick={() => handleVerify('aadhar', control.getValues('aadharOtp'), aadhar)}
+            >
+              Verify Aadhaar
+            </Button>
           </>
         )}
+      </Stack>
+
+      <Stack direction="row" spacing={2}>
+        <Button variant="contained" color="success" onClick={handleCompleteVerification}>
+          Complete Verification
+        </Button>
       </Stack>
     </Stack>
   );

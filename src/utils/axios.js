@@ -113,6 +113,12 @@ export const endpoints = {
 
     incompleteTodayLead: '/api/lead/enquiries/today-draft/',
     incompleteAllLead: '/api/lead/enquiries/draft/',
-    incompleteLead: (id) => `/api/lead/enquiries/${id}/`, 
+    incompleteLead: (id) => `/api/lead/enquiries/${id}/`,
+
+    verification: (leadId) => `/api/lead/enquiries/${leadId}/verification/`,
+    otpVerify: (leadId) => `/api/lead/enquiries/${leadId}/otp_verification/`,
+    completeVerification: (leadId) => `/api/lead/enquiries/${leadId}/verification/complete/`,
+    
+    imageUpload: (enquiryId) => `/api/lead/enquiries/${enquiryId}/images/`,
   },
 };
